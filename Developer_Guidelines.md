@@ -3,6 +3,7 @@
 ## 版本日志
 - v1.0.0 2025-12-28: 初始版本 - 成功
 - v1.0.1 2025-12-28: 添加版本日志要求规范 - 成功
+- v1.1.0 2025-12-28: 完成基准测试、机器学习、差速控制、数据生成等模块 - 待测试
 
 ## 1. 项目概述
 
@@ -50,16 +51,32 @@ Troll-vs-Troll（拉杆载具防侧翻系统）是一个基于UNIHIKER M10行空
 Troll-vs-Troll/
 ├── README.md
 ├── Developer_Guidelines.md
+├── requirements.txt
+├── Update_Log.md
+├── convert_docx_to_txt.py
 ├── ref/
 │   ├── 吴佳泽_开题报告_1.0.docx
+│   ├── 吴佳泽_开题报告_1.0.txt
 │   ├── UNIHIKER_M10_Python_Documentation.md
 │   └── UNIHIKER_M10_Detailed_API_Documentation.md
 ├── src/
-│   ├── main.py
+│   ├── main/
+│   │   ├── __init__.py
+│   │   └── benchmark.py
 │   ├── sensors/
+│   │   ├── __init__.py
+│   │   └── data_processor.py
 │   ├── control/
-│   └── utils/
+│   │   ├── __init__.py
+│   │   └── differential_controller.py
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   └── data_generator.py
+│   └── ml/
+│       ├── __init__.py
+│       └── rollover_prediction.py
 └── tests/
+    └── __init__.py
 ```
 
 ### 4.2 模块组织
@@ -111,11 +128,12 @@ Troll-vs-Troll/
 ### 7.3 版本日志要求
 - 在每个程序及文件开头需要有属于其自己的版本日志
 - 版本日志应声明该文件被做了什么改动，是否成功
+- 每个子程序文件的版本日志只需维护该程序本身的更新状态，不需要包含其他模块的更新信息
 - 版本日志格式如下：
   ```
   ## 版本日志
-  - v1.0.0 [日期]: 初始版本
-  - v1.0.1 [日期]: [具体改动描述] - [成功/失败]
+  - v1.0.0 [日期]: 初始版本 - [成功/失败]
+  - v1.1.0 [日期]: [具体改动描述] - [成功/失败]
   ```
 
 ### 7.4 README更新要求
