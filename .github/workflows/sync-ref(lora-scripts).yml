@@ -1,0 +1,31 @@
+name: Sync lora-scripts
+
+# 允许手动触发此工作流
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      # 检出你的目标仓库（当前仓库）
+      - name: Checkout target repo
+        uses: actions/checkout@v3
+
+      # 将 lora-scripts 仓库克隆到 ref/lora-scripts 目录，并移除 .git 信息使其成为普通文件夹
+      - name: Clone lora-scripts into ref/lora-scripts
+        run: |
+          # 如果之前存在该目录，先移除（避免冲突）
+          rm -rf ref/lora-scripts
+          # 克隆远程仓库到指定路径
+          git clone https://github.com/Akegarasu/lora-scripts.git ref/lora-scripts
+          # 进入该目录并删除 .git 文件夹，使其成为普通内容（不再关联远程仓库）
+          rm -rf ref/lora-scripts/.git
+          # 配置 git 用户信息（用于提交）
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # 添加变更并提交
+          git add ref/lora-scripts
+          git commit -m "Sync lora-scripts to ref/lora-scripts" || echo "No changes to commit"
+          # 推送到你的仓库
+          git push
