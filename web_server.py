@@ -167,6 +167,112 @@ def get_latest_results():
     response.content_type = 'application/json'
     return json.dumps({'results': list(recent_results)})
 
+@app.route('/learning')
+def learning_mode():
+    """Serve the learning mode page."""
+    return load_template('learning_mode.html')
+
+@app.route('/api/save_training_data', method='POST')
+def save_training_data():
+    """Save training data from learning mode."""
+    data = request.json
+    
+    # Save to training data file
+    training_data_file = 'training_data.json'
+    try:
+        if os.path.exists(training_data_file):
+            with open(training_data_file, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+        else:
+            existing_data = []
+        
+        existing_data.append(data)
+        
+        with open(training_data_file, 'w', encoding='utf-8') as f:
+            json.dump(existing_data, f, indent=2, ensure_ascii=False)
+        
+        response.content_type = 'application/json'
+        return json.dumps({'status': 'success', 'message': '数据保存成功'})
+    except Exception as e:
+        response.status = 500
+        response.content_type = 'application/json'
+        return json.dumps({'status': 'error', 'message': str(e)})
+
+@app.route('/api/clear_training_data', method='POST')
+def clear_training_data():
+    """Clear all training data."""
+    try:
+        if os.path.exists('training_data.json'):
+            os.remove('training_data.json')
+        
+        response.content_type = 'application/json'
+        return json.dumps({'status': 'success', 'message': '数据已清空'})
+    except Exception as e:
+        response.status = 500
+        response.content_type = 'application/json'
+        return json.dumps({'status': 'error', 'message': str(e)})
+
+@app.route('/api/train_model', method='POST')
+def train_model():
+    """Train the machine learning model with collected data."""
+    try:
+        # Import and run training
+        from src.ml.offline_trainer import OfflineTrainer
+        trainer = OfflineTrainer()
+        result = trainer.train_from_collected_data()
+        
+        response.content_type = 'application/json'
+        return json.dumps({'status': 'success', 'result': result})
+    except Exception as e:
+        response.status = 500
+        response.content_type = 'application/json'
+        return json.dumps({'status': 'error', 'message': str(e)})
+
+@app.route('/api/get_config')
+def get_config():
+    """Get system configuration."""
+    try:
+        with open('system_config.json', 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        response.content_type = 'application/json'
+        return json.dumps(config)
+    except Exception as e:
+        response.status = 500
+        response.content_type = 'application/json'
+        return json.dumps({'error': str(e)})
+
+@app.route('/api/update_config', method='POST')
+def update_config():
+    """Update system configuration."""
+    try:
+        new_config = request.json
+        
+        # 读取现有配置
+        with open('system_config.json', 'r', encoding='utf-8') as f:
+            current_config = json.load(f)
+        
+        # 深度合并配置
+        def deep_merge(old, new):
+            for key, value in new.items():
+                if key in old and isinstance(old[key], dict) and isinstance(value, dict):
+                    deep_merge(old[key], value)
+                else:
+                    old[key] = value
+            return old
+        
+        updated_config = deep_merge(current_config, new_config)
+        
+        # 保存更新后的配置
+        with open('system_config.json', 'w', encoding='utf-8') as f:
+            json.dump(updated_config, f, indent=2, ensure_ascii=False)
+        
+        response.content_type = 'application/json'
+        return json.dumps({'status': 'success', 'message': '配置已更新'})
+    except Exception as e:
+        response.status = 500
+        response.content_type = 'application/json'
+        return json.dumps({'status': 'error', 'message': str(e)})
+
 def run_server():
     """Run the web server in a separate thread."""
     run(app, host='localhost', port=8080, debug=False)

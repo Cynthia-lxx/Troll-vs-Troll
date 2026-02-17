@@ -20,12 +20,48 @@
         }
         .scene-container {
             margin: 20px 0;
-            text-align: center;
+            display: flex;
+            gap: 20px;
         }
         #scene {
             width: 400px;
             height: 400px;
-            margin: 0 auto;
+        }
+        .control-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .motion-controls, .physics-settings {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .axis-label {
+            width: 80px;
+            font-weight: bold;
+        }
+        .slider {
+            flex: 1;
+            height: 20px;
+        }
+        .control-mode-toggle {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
         }
         .controls {
             display: flex;
@@ -67,6 +103,48 @@
         
         <div class="scene-container">
             <div id="scene"></div>
+            <div class="control-panel">
+                <div class="motion-controls">
+                    <h3>运动控制</h3>
+                    <div class="control-row">
+                        <span class="axis-label">X轴运动:</span>
+                        <input type="range" class="slider" id="motion_x" min="-3" max="3" step="0.1" value="0" oninput="updateMotion('x', this.value)">
+                        <span id="motion_x_value">0.0</span>
+                    </div>
+                    <div class="control-row">
+                        <span class="axis-label">Y轴运动:</span>
+                        <input type="range" class="slider" id="motion_y" min="-3" max="3" step="0.1" value="0" oninput="updateMotion('y', this.value)">
+                        <span id="motion_y_value">0.0</span>
+                    </div>
+                    <div class="control-row">
+                        <span class="axis-label">Z轴运动:</span>
+                        <input type="range" class="slider" id="motion_z" min="-3" max="3" step="0.1" value="0" oninput="updateMotion('z', this.value)">
+                        <span id="motion_z_value">0.0</span>
+                    </div>
+                    <div class="control-mode-toggle">
+                        <label>
+                            <input type="radio" name="control_mode" value="velocity" checked onchange="setControlMode('velocity')"> 速度控制
+                        </label>
+                        <label>
+                            <input type="radio" name="control_mode" value="acceleration" onchange="setControlMode('acceleration')"> 加速度控制
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="physics-settings">
+                    <h3>物理参数</h3>
+                    <div class="setting-row">
+                        <span>重力强度:</span>
+                        <input type="range" id="gravity_strength" min="0" max="0.2" step="0.01" value="0.08" oninput="updatePhysics('gravity', this.value)">
+                        <span id="gravity_display">0.08</span>
+                    </div>
+                    <div class="setting-row">
+                        <span>阻尼系数:</span>
+                        <input type="range" id="damping_factor" min="0" max="0.3" step="0.01" value="0.1" oninput="updatePhysics('damping', this.value)">
+                        <span id="damping_display">0.10</span>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <div class="values-display">
@@ -101,6 +179,7 @@
             <button onclick="autoSendToggle()">自动发送: 关闭</button>
             <a href="/params"><button type="button">设置物理参数</button></a>
             <a href="/visualization"><button type="button">查看结果图表</button></a>
+            <a href="/learning"><button type="button" style="background-color: #28a745; color: white;">机器学习训练</button></a>
         </div>
         
         <div class="status" id="status">
@@ -113,11 +192,127 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
     
     <script>
+        // 全局配置
+        let systemConfig = null;
+        
+        // 全局变量
         let scene, camera, renderer, cube, controls;
         let autoSendInterval = null;
         let currentRotation = { x: 0, y: 0, z: 0 };
-        let manualRotation = new THREE.Euler(0, 0, 0); // 手动旋转立方体的角度
+        let manualRotation = new THREE.Euler(0, 0, 0);
         let isDragging = false;
+        
+        // 运动控制变量
+        let motionState = {
+            x: 0,
+            y: 0, 
+            z: 0,
+            mode: 'velocity'  // 'velocity' or 'acceleration'
+        };
+        
+        let physicsParams = {
+            gravityStrength: 0.08,
+            dampingFactor: 0.1
+        };
+        
+        // 物理状态
+        let velocity = { x: 0, y: 0, z: 0 };
+        let acceleration = { x: 0, y: 0, z: 0 };
+        
+        // 初始化时加载配置
+        async function loadSystemConfig() {
+            try {
+                const response = await fetch('/api/get_config');
+                systemConfig = await response.json();
+                
+                // 更新物理参数
+                physicsParams.gravityStrength = systemConfig.control_parameters.gravity_strength;
+                physicsParams.dampingFactor = systemConfig.control_parameters.damping_factor;
+                
+                // 更新UI显示
+                document.getElementById('gravity_strength').value = physicsParams.gravityStrength;
+                document.getElementById('gravity_display').textContent = physicsParams.gravityStrength.toFixed(2);
+                document.getElementById('damping_factor').value = physicsParams.dampingFactor;
+                document.getElementById('damping_display').textContent = physicsParams.dampingFactor.toFixed(2);
+                
+                console.log('系统配置加载成功:', systemConfig);
+            } catch (error) {
+                console.error('加载系统配置失败:', error);
+            }
+        }
+        
+        function updateMotion(axis, value) {
+            motionState[axis] = parseFloat(value);
+            document.getElementById(`motion_${axis}_value`).textContent = parseFloat(value).toFixed(1);
+            
+            if (motionState.mode === 'velocity') {
+                velocity[axis] = motionState[axis];
+            } else {
+                acceleration[axis] = motionState[axis];
+            }
+        }
+        
+        function setControlMode(mode) {
+            motionState.mode = mode;
+        }
+        
+        function updatePhysics(param, value) {
+            const val = parseFloat(value);
+            if (param === 'gravity') {
+                physicsParams.gravityStrength = val;
+                document.getElementById('gravity_display').textContent = val.toFixed(2);
+                // 同步到配置文件
+                updateConfigParameter('control_parameters', 'gravity_strength', val);
+            } else if (param === 'damping') {
+                physicsParams.dampingFactor = val;
+                document.getElementById('damping_display').textContent = val.toFixed(2);
+                // 同步到配置文件
+                updateConfigParameter('control_parameters', 'damping_factor', val);
+            }
+        }
+        
+        async function updateConfigParameter(section, key, value) {
+            try {
+                const updateData = {};
+                updateData[section] = {};
+                updateData[section][key] = value;
+                
+                await fetch('/api/update_config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+            } catch (error) {
+                console.error('更新配置失败:', error);
+            }
+        }
+        
+        function applyPhysics() {
+            const dt = 0.016; // 60fps
+            
+            // 应用加速度到速度
+            velocity.x += acceleration.x * dt;
+            velocity.y += acceleration.y * dt;
+            velocity.z += acceleration.z * dt;
+            
+            // 应用阻尼
+            const damping = physicsParams.dampingFactor;
+            velocity.x *= (1 - damping * dt);
+            velocity.y *= (1 - damping * dt);
+            velocity.z *= (1 - damping * dt);
+            
+            // 应用重力回正到旋转
+            if (Math.abs(cube.rotation.x) > 0.001 || Math.abs(cube.rotation.y) > 0.001) {
+                cube.rotation.x *= (1 - physicsParams.gravityStrength);
+                cube.rotation.y *= (1 - physicsParams.gravityStrength);
+                cube.rotation.z *= (1 - physicsParams.gravityStrength * 0.5);
+            }
+            
+            // 更新传感器值
+            updateSensorValues();
+        }
 
         function init() {
             // 创建场景
@@ -133,8 +328,18 @@
             renderer.setSize(400, 400);
             document.getElementById('scene').appendChild(renderer.domElement);
 
-            // 创建立方体
-            const geometry = new THREE.BoxGeometry(2, 1, 1); // 长方体，模拟拉杆箱
+            // 创建立方体（从配置获取书包比例）
+            let bagDims = { length: 0.5, height: 0.7, width: 0.3 }; // 默认值
+            if (systemConfig && systemConfig.physical_parameters) {
+                const dims = systemConfig.physical_parameters.bag_dimensions;
+                bagDims = { 
+                    length: dims.length || 0.5,
+                    height: dims.height || 0.7, 
+                    width: dims.width || 0.3
+                };
+            }
+            
+            const geometry = new THREE.BoxGeometry(bagDims.length, bagDims.height, bagDims.width);
             
             // 为每个面设置不同颜色以便观察旋转
             const materials = [
@@ -178,6 +383,9 @@
             requestAnimationFrame(animate);
             controls.update(); // 更新控制器
             
+            // 应用物理计算
+            applyPhysics();
+            
             // 如果正在拖动，则实时更新立方体旋转和传感器值
             if (isDragging) {
                 updateCubeRotation();
@@ -187,19 +395,34 @@
             renderer.render(scene, camera);
         }
 
+
         function updateCubeRotation() {
-            // 通过计算相机绕立方体的旋转来更新立方体自身的旋转
-            // 这样用户拖动时，立方体会相应地旋转
+            // 获取相机的旋转状态
             const targetRotation = new THREE.Euler();
             targetRotation.setFromRotationMatrix(camera.matrixWorldInverse);
             
-            // 将相机的旋转映射到立方体的旋转（反向操作）
-            // 通过这种方式，用户拖动视角的行为被解释为立方体的旋转
-            cube.rotation.x = -targetRotation.x;
-            cube.rotation.y = -targetRotation.y;
-            cube.rotation.z = -targetRotation.z;
+            // 限制旋转幅度（模拟真实使用范围）
+            const maxXRotation = Math.PI / 6;  // ±30度
+            const maxYRotation = Math.PI / 4;  // ±45度
             
-            // 保存当前旋转状态
+            let newX = -targetRotation.x;
+            let newY = -targetRotation.y;
+            let newZ = -targetRotation.z;
+            
+            // 应用旋转限制
+            newX = Math.max(-maxXRotation, Math.min(maxXRotation, newX));
+            newY = Math.max(-maxYRotation, Math.min(maxYRotation, newY));
+            
+            // 实时应用重力回正效应（即使在拖动时也持续作用）
+            const gravityFactor = 0.05;  // 增强重力回正强度
+            newX *= (1 - gravityFactor);
+            newY *= (1 - gravityFactor);
+            newZ *= (1 - gravityFactor * 0.3);  // Z轴回正稍慢
+            
+            cube.rotation.x = newX;
+            cube.rotation.y = newY;
+            cube.rotation.z = newZ;
+            
             manualRotation.copy(cube.rotation);
         }
 
@@ -243,7 +466,12 @@
                 accel_z: parseFloat(document.getElementById('accel_z_value').textContent),
                 gyro_x: parseFloat(document.getElementById('gyro_x_value').textContent),
                 gyro_y: parseFloat(document.getElementById('gyro_y_value').textContent),
-                gyro_z: parseFloat(document.getElementById('gyro_z_value').textContent)
+                gyro_z: parseFloat(document.getElementById('gyro_z_value').textContent),
+                velocity_x: velocity.x,
+                velocity_y: velocity.y,
+                velocity_z: velocity.z,
+                motion_mode: motionState.mode,
+                timestamp: Date.now()
             };
         }
 
@@ -286,7 +514,10 @@
         }
 
         // 初始化场景
-        window.onload = function() {
+        window.onload = async function() {
+            // 首先加载系统配置
+            await loadSystemConfig();
+            // 然后初始化3D场景
             init();
         };
     </script>

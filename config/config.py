@@ -11,7 +11,7 @@ Version: 1.0.0
 
 # System Configuration
 SYSTEM_NAME = "Troll-vs-Troll Anti-Rollover System"
-VERSION = "1.0.1"
+VERSION = "1.3.1"
 
 # Hardware Configuration
 HARDWARE_PLATFORM = "UNIHIKER M10"
