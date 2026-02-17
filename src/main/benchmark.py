@@ -2,11 +2,11 @@
 Troll-vs-Troll Project
 UNIHIKER M10 Benchmark Demo
 
-This module serves as a comprehensive benchmark and demo for the UNIHIKER M10 board,
+This module serves as a comprehensive benchmark for the UNIHIKER M10 board,
 testing all onboard sensors, display components, and measuring computational performance.
 Features a page-based UI to navigate through different sensor readings and performance metrics.
 
-Version: 1.0.0
+Version: 1.0.5
 """
 
 import time
@@ -95,12 +95,14 @@ class BenchmarkDemo:
             x_pos = 120 + int(self.accel_data[0] * 50)
             y_pos = 180 + int(self.accel_data[1] * 50)
             
-            # Draw reference cross
-            self.gui.draw_line(x=20, y=180, x1=220, y1=180, color=(100, 100, 100), width=1)  # Horizontal
-            self.gui.draw_line(x=120, y=80, x1=120, y1=280, color=(100, 100, 100), width=1)  # Vertical
+            # Draw reference cross using lines made of text elements
+            for i in range(0, 200, 4):  # Horizontal line
+                self.gui.draw_text(x=20+i, y=180, text="┉", origin='center', font_size=6, color=(100, 100, 100))
+            for i in range(0, 200, 4):  # Vertical line
+                self.gui.draw_text(x=120, y=80+i, text="┋", origin='center', font_size=6, color=(100, 100, 100))
             
             # Draw accelerometer ball
-            self.gui.draw_circle(x=x_pos, y=y_pos, r=10, color=(0, 255, 255), fill=True)
+            self.gui.draw_text(x=x_pos, y=y_pos, text="●", origin='center', font_size=16, color=(0, 255, 255))
             
         except Exception as e:
             self.gui.draw_text(x=120, y=30, text="Accelerometer Data", origin='center', font_size=16, color=(0, 255, 0))
@@ -119,10 +121,22 @@ class BenchmarkDemo:
             self.gui.draw_text(x=120, y=30, text="Light Sensor", origin='center', font_size=16, color=(0, 255, 0))
             self.gui.draw_text(x=120, y=80, text=f"Light Level: {self.light_value}", origin='center', font_size=16, color=(200, 200, 200))
             
-            # Draw a light indicator
+            # Draw a light indicator using text elements instead of rectangles
             bar_width = min(200, max(20, int(self.light_value / 1023 * 200)))
-            self.gui.draw_rectangle(x=20, y=140, w=bar_width, h=20, color=(255, 255, 0), fill=True)
-            self.gui.draw_rectangle(x=20, y=140, w=200, h=20, color=(100, 100, 100), width=2)
+            # Using a series of characters to simulate a filled bar
+            bar_chars = int(bar_width / 8)
+            bar_text = "█" * bar_chars
+            self.gui.draw_text(x=20 + bar_width//2, y=150, text=bar_text, origin='center', font_size=16, color=(255, 255, 0))
+            
+            # Draw outline for the bar using small text elements
+            for i in range(0, 200, 8):  # Top border
+                self.gui.draw_text(x=20+i, y=140, text="━", origin='center', font_size=10, color=(100, 100, 100))
+            for i in range(0, 200, 8):  # Bottom border
+                self.gui.draw_text(x=20+i, y=160, text="━", origin='center', font_size=10, color=(100, 100, 100))
+            for i in range(0, 20, 2):  # Left border
+                self.gui.draw_text(x=20, y=140+i, text="┃", origin='center', font_size=10, color=(100, 100, 100))
+            for i in range(0, 20, 2):  # Right border
+                self.gui.draw_text(x=220, y=140+i, text="┃", origin='center', font_size=10, color=(100, 100, 100))
             
             # Draw percentage
             percentage = int(self.light_value / 1023 * 100)
@@ -139,10 +153,16 @@ class BenchmarkDemo:
         """
         self.gui.draw_text(x=120, y=30, text="Display Test", origin='center', font_size=16, color=(0, 255, 0))
         
-        # Draw various shapes and colors
-        self.gui.draw_circle(x=60, y=80, r=20, color=(255, 0, 0), fill=True)  # Red circle
-        self.gui.draw_rectangle(x=100, y=60, w=40, h=40, color=(0, 255, 0), fill=True)  # Green square
-        self.gui.draw_line(x=160, y=60, x1=200, y1=100, color=(0, 0, 255), width=3)  # Blue line
+        # Draw various shapes using text elements
+        # Red circle substitute
+        self.gui.draw_text(x=60, y=80, text="●", origin='center', font_size=24, color=(255, 0, 0))
+        # Green square substitute  
+        self.gui.draw_text(x=120, y=80, text="■", origin='center', font_size=24, color=(0, 255, 0))
+        # Blue line substitute (using multiple text elements)
+        for i in range(5):
+            x = 160 + i * 8
+            y = 60 + i * 8
+            self.gui.draw_text(x=x, y=y, text="•", origin='center', font_size=10, color=(0, 0, 255))
         
         # Draw different text sizes and colors
         self.gui.draw_text(x=120, y=130, text="Small Text", origin='center', font_size=10, color=(255, 255, 0))
@@ -151,7 +171,7 @@ class BenchmarkDemo:
         
         # Draw a simple animation indicator (moving dot)
         animation_x = 20 + ((time.time() * 100) % 200)
-        self.gui.draw_circle(x=int(animation_x), y=220, r=5, color=(255, 255, 255), fill=True)
+        self.gui.draw_text(x=int(animation_x), y=220, text="●", origin='center', font_size=10, color=(255, 255, 255))
         
         self.gui.draw_text(x=120, y=250, text="Animation Test", origin='center', font_size=12, color=(200, 200, 200))
 
@@ -184,10 +204,22 @@ class BenchmarkDemo:
         calc_time = (time.time() - start_calc) * 1000  # in ms
         self.gui.draw_text(x=120, y=130, text=f"Calc Time: {calc_time:.2f}ms", origin='center', font_size=14, color=(200, 200, 200))
         
-        # Draw performance bar
+        # Draw performance bar using text elements
         calc_bar_width = max(0, min(200, int((10 - calc_time) * 20))) if calc_time < 10 else 200
-        self.gui.draw_rectangle(x=20, y=170, w=calc_bar_width, h=15, color=(0, 255, 0), fill=True)
-        self.gui.draw_rectangle(x=20, y=170, w=200, h=15, color=(100, 100, 100), width=2)
+        bar_chars = int(calc_bar_width / 8)
+        bar_text = "█" * bar_chars
+        self.gui.draw_text(x=20 + calc_bar_width//2, y=177, text=bar_text, origin='center', font_size=16, color=(0, 255, 0))
+        
+        # Draw outline for the bar
+        for i in range(0, 200, 8):  # Top border
+            self.gui.draw_text(x=20+i, y=170, text="━", origin='center', font_size=10, color=(100, 100, 100))
+        for i in range(0, 200, 8):  # Bottom border
+            self.gui.draw_text(x=20+i, y=185, text="━", origin='center', font_size=10, color=(100, 100, 100))
+        for i in range(0, 15, 2):  # Left border
+            self.gui.draw_text(x=20, y=170+i, text="┃", origin='center', font_size=10, color=(100, 100, 100))
+        for i in range(0, 15, 2):  # Right border
+            self.gui.draw_text(x=220, y=170+i, text="┃", origin='center', font_size=10, color=(100, 100, 100))
+        
         self.gui.draw_text(x=120, y=190, text="Performance (higher is better)", origin='center', font_size=10, color=(200, 200, 200))
         
         # Memory usage would require psutil or similar, which might not be available on UNIHIKER
@@ -202,9 +234,8 @@ class BenchmarkDemo:
         self.gui.draw_text(x=120, y=100, text="Press A to play test tone", origin='center', font_size=12, color=(200, 200, 200))
         self.gui.draw_text(x=120, y=120, text="Press B to stop playback", origin='center', font_size=12, color=(200, 200, 200))
         
-        # Draw a simple speaker icon
-        self.gui.draw_oval(x=90, y=160, w=60, h=30, color=(100, 100, 100), fill=True)
-        self.gui.draw_oval(x=100, y=165, w=40, h=20, color=(50, 50, 50), fill=True)
+        # Draw a simple speaker icon using text - replacing problematic Unicode
+        self.gui.draw_text(x=120, y=180, text="[SND]", origin='center', font_size=24, color=(200, 200, 200))
         self.gui.draw_text(x=120, y=200, text="Speaker", origin='center', font_size=12, color=(200, 200, 200))
 
     def page_compass(self):
@@ -215,9 +246,10 @@ class BenchmarkDemo:
         self.gui.draw_text(x=120, y=80, text="Compass functionality", origin='center', font_size=14, color=(200, 200, 200))
         self.gui.draw_text(x=120, y=100, text="would be tested here", origin='center', font_size=14, color=(200, 200, 200))
         
-        # Draw a simple compass
+        # Draw a simple compass using text elements
         center_x, center_y = 120, 180
-        self.gui.draw_circle(x=center_x, y=center_y, r=40, color=(200, 200, 200), width=2)
+        # Draw compass circle
+        self.gui.draw_text(x=center_x, y=center_y, text="○", origin='center', font_size=48, color=(200, 200, 200))
         
         # Draw N, S, E, W
         self.gui.draw_text(x=center_x, y=center_y-50, text="N", origin='center', font_size=12, color=(255, 0, 0))
@@ -229,7 +261,7 @@ class BenchmarkDemo:
         angle = math.radians(self.compass_value)
         needle_x = center_x + 30 * math.sin(angle)
         needle_y = center_y - 30 * math.cos(angle)
-        self.gui.draw_line(x=center_x, y=center_y, x1=needle_x, y1=needle_y, color=(255, 0, 0), width=3)
+        self.gui.draw_text(x=needle_x, y=needle_y, text="●", origin='center', font_size=10, color=(255, 0, 0))
 
     def navigate_to_next_page(self):
         """
@@ -253,8 +285,12 @@ class BenchmarkDemo:
         
         # Main loop
         while True:
-            # Clear screen by drawing a background
-            self.gui.draw_rectangle(x=0, y=0, w=240, h=320, color=(0, 0, 0), fill=True)
+            # Clear screen by drawing a black background
+            # Use many small elements to densely cover the screen
+            # Grid of elements covering the whole screen
+            for y in range(0, 320, 10):  # Every 10 pixels vertically
+                for x in range(0, 240, 10):  # Every 10 pixels horizontally
+                    self.gui.draw_text(x=x+5, y=y+5, text=" ", origin='center', font_size=16, color=(0, 0, 0))
             
             # Run the current page function
             self.pages[self.page_index]()

@@ -6,7 +6,7 @@ This module implements the control algorithm for the electronic differential
 system based on the rollover risk predictions from the ML model. It adjusts
 wheel speeds to prevent rollover during turns and sudden movements.
 
-Version: 1.0.0
+Version: 1.0.1
 """
 
 import time
@@ -20,19 +20,47 @@ class DifferentialController:
     Uses ML predictions and sensor data to adjust wheel speeds in real-time.
     """
     
-    def __init__(self):
+    def __init__(self, bag_length=0.5, bag_width=0.3, bag_height=0.7, center_of_gravity_height=0.4, 
+                 wheel_radius=0.1, wheel_mass=0.5, bag_total_mass=5.0):
         """
-        Initialize the differential controller.
+        Initialize the differential controller with physical parameters.
+        
+        Args:
+            bag_length (float): Length of the bag (m)
+            bag_width (float): Width of the bag (m) 
+            bag_height (float): Height of the bag (m)
+            center_of_gravity_height (float): Height of center of gravity from ground (m)
+            wheel_radius (float): Radius of wheels (m)
+            wheel_mass (float): Mass of each wheel (kg)
+            bag_total_mass (float): Total mass of bag with contents (kg)
         """
         # TODO: Implement differential control algorithm - HIGH - Developer
         # TODO: Integrate with ML rollover prediction model - HIGH - Developer
         # TODO: Implement real-time wheel speed adjustment - MEDIUM - Developer
         
-        self.rollover_predictor = RolloverPredictor()
+        self.rollover_predictor = RolloverPredictor(
+            bag_length=bag_length,
+            bag_width=bag_width,
+            bag_height=bag_height,
+            center_of_gravity_height=center_of_gravity_height,
+            wheel_radius=wheel_radius,
+            wheel_mass=wheel_mass,
+            bag_total_mass=bag_total_mass
+        )
         self.sensor_processor = SensorDataProcessor()
         
+        # Physical parameters
+        self.bag_length = bag_length
+        self.bag_width = bag_width
+        self.bag_height = bag_height
+        self.center_of_gravity_height = center_of_gravity_height
+        self.wheel_radius = wheel_radius
+        self.wheel_mass = wheel_mass
+        self.bag_total_mass = bag_total_mass
+        
         # Control parameters
-        self.max_wheel_diff = 0.3  # Maximum allowed wheel speed difference
+        # Adjust max wheel diff based on physical parameters
+        self.max_wheel_diff = min(0.5, (self.bag_width / 2) / self.wheel_radius * 0.1)  # Based on geometry
         self.control_threshold = 0.3  # Risk threshold to activate control
         self.last_control_time = time.time()
         self.control_interval = 0.1  # Control update interval in seconds
@@ -42,7 +70,7 @@ class DifferentialController:
         self.right_wheel_speed = 0.0
         self.control_active = False
         
-        print("DifferentialController initialized")
+        print(f"DifferentialController initialized with bag dimensions: {bag_length}m x {bag_width}m x {bag_height}m, CoG height: {center_of_gravity_height}m")
 
     def update_control(self, accel_data, gyro_data=None):
         """

@@ -5,7 +5,7 @@ Main Application Entry Point
 This module serves as the main entry point for the anti-rollover system.
 It initializes the system components and starts the main control loop.
 
-Version: 1.0.0
+Version: 1.0.1
 """
 
 def main():

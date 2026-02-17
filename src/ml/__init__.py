@@ -9,6 +9,6 @@ predicting rollover risk based on sensor data and adaptive control.
 Version: 1.0.0
 """
 
-## 版本日志
-- v1.0.0 2025-12-28: 初始版本 - 成功
-- v1.1.0 2025-12-28: 添加侧翻预测模块 - 待测试
+# Version log as Python comments
+# v1.0.0 2025-12-28: Initial version - Success
+# v1.1.0 2025-12-28: Added rollover prediction module - Pending testing

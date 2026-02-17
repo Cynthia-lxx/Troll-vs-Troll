@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Troll-vs-Troll 传感器输入</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .scene-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+        #scene {
+            width: 400px;
+            height: 400px;
+            margin: 0 auto;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+        }
+        .values-display {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f0f8ff;
+            border-radius: 5px;
+        }
+        .value-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        .buttons {
+            margin: 20px 0;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 10px;
+            font-size: 16px;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #e9f7ef;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Troll-vs-Troll 传感器输入</h1>
+        <p>拖动3D立方体来模拟传感器数据输入：</p>
+        
+        <div class="scene-container">
+            <div id="scene"></div>
+        </div>
+        
+        <div class="values-display">
+            <div class="value-item">
+                <span>加速度 X:</span>
+                <span id="accel_x_value">0.00</span> m/s²
+            </div>
+            <div class="value-item">
+                <span>加速度 Y:</span>
+                <span id="accel_y_value">0.00</span> m/s²
+            </div>
+            <div class="value-item">
+                <span>加速度 Z:</span>
+                <span id="accel_z_value">9.80</span> m/s²
+            </div>
+            <div class="value-item">
+                <span>陀螺仪 X:</span>
+                <span id="gyro_x_value">0.00</span> rad/s
+            </div>
+            <div class="value-item">
+                <span>陀螺仪 Y:</span>
+                <span id="gyro_y_value">0.00</span> rad/s
+            </div>
+            <div class="value-item">
+                <span>陀螺仪 Z:</span>
+                <span id="gyro_z_value">0.00</span> rad/s
+            </div>
+        </div>
+        
+        <div class="buttons">
+            <button onclick="sendData()">发送数据</button>
+            <button onclick="autoSendToggle()">自动发送: 关闭</button>
+            <a href="/params"><button type="button">设置物理参数</button></a>
+            <a href="/visualization"><button type="button">查看结果图表</button></a>
+        </div>
+        
+        <div class="status" id="status">
+            状态: 就绪
+        </div>
+    </div>
+
+    <!-- 引入Three.js库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    
+    <script>
+        let scene, camera, renderer, cube, controls;
+        let autoSendInterval = null;
+        let currentRotation = { x: 0, y: 0, z: 0 };
+        let manualRotation = new THREE.Euler(0, 0, 0); // 手动旋转立方体的角度
+        let isDragging = false;
+
+        function init() {
+            // 创建场景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f0f0);
+
+            // 创建相机
+            camera = new THREE.PerspectiveCamera(75, 400 / 400, 0.1, 1000);
+            camera.position.set(0, 0, 5);
+
+            // 创建渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(400, 400);
+            document.getElementById('scene').appendChild(renderer.domElement);
+
+            // 创建立方体
+            const geometry = new THREE.BoxGeometry(2, 1, 1); // 长方体，模拟拉杆箱
+            
+            // 为每个面设置不同颜色以便观察旋转
+            const materials = [
+                new THREE.MeshBasicMaterial({ color: 0xff0000 }),    // right - red
+                new THREE.MeshBasicMaterial({ color: 0x00ff00 }),    // left - green
+                new THREE.MeshBasicMaterial({ color: 0x0000ff }),    // top - blue
+                new THREE.MeshBasicMaterial({ color: 0xffff00 }),    // bottom - yellow
+                new THREE.MeshBasicMaterial({ color: 0xff00ff }),    // front - magenta
+                new THREE.MeshBasicMaterial({ color: 0x00ffff })     // back - cyan
+            ];
+            
+            cube = new THREE.Mesh(geometry, materials);
+            scene.add(cube);
+
+            // 添加坐标轴助手
+            const axesHelper = new THREE.AxesHelper(2);
+            scene.add(axesHelper);
+
+            // 添加轨道控制器 - 用户拖动时改变立方体的旋转
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // 监听交互事件
+            controls.addEventListener('start', function() {
+                isDragging = true;
+            });
+            
+            controls.addEventListener('end', function() {
+                isDragging = false;
+                // 将当前相机的旋转状态转换为立方体的旋转
+                updateCubeRotation();
+                updateSensorValues();
+            });
+
+            // 渲染循环
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // 更新控制器
+            
+            // 如果正在拖动，则实时更新立方体旋转和传感器值
+            if (isDragging) {
+                updateCubeRotation();
+                updateSensorValues();
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        function updateCubeRotation() {
+            // 通过计算相机绕立方体的旋转来更新立方体自身的旋转
+            // 这样用户拖动时，立方体会相应地旋转
+            const targetRotation = new THREE.Euler();
+            targetRotation.setFromRotationMatrix(camera.matrixWorldInverse);
+            
+            // 将相机的旋转映射到立方体的旋转（反向操作）
+            // 通过这种方式，用户拖动视角的行为被解释为立方体的旋转
+            cube.rotation.x = -targetRotation.x;
+            cube.rotation.y = -targetRotation.y;
+            cube.rotation.z = -targetRotation.z;
+            
+            // 保存当前旋转状态
+            manualRotation.copy(cube.rotation);
+        }
+
+        function updateSensorValues() {
+            // 获取立方体的实际旋转角度
+            const rotX = cube.rotation.x;
+            const rotY = cube.rotation.y;
+            const rotZ = cube.rotation.z;
+            
+            // 将旋转角度转换为加速度值
+            // 当物体倾斜时，重力在各轴上的分量会发生变化
+            const gravity = 9.8;
+            
+            // 根据欧拉角计算重力在各轴上的分量
+            // 使用标准的重力分解公式
+            const accelX = gravity * Math.sin(rotY) * Math.cos(rotX);
+            const accelY = -gravity * Math.sin(rotX);
+            const accelZ = gravity * Math.cos(rotY) * Math.cos(rotX);
+            
+            // 陀螺仪值为旋转角速度（基于变化率）
+            const gyroX = (rotX - currentRotation.x) * 15; // 基于变化率
+            const gyroY = (rotY - currentRotation.y) * 15;
+            const gyroZ = (rotZ - currentRotation.z) * 15;
+            
+            // 更新当前旋转值
+            currentRotation = { x: rotX, y: rotY, z: rotZ };
+            
+            // 更新显示值
+            document.getElementById('accel_x_value').textContent = accelX.toFixed(2);
+            document.getElementById('accel_y_value').textContent = accelY.toFixed(2);
+            document.getElementById('accel_z_value').textContent = accelZ.toFixed(2);
+            document.getElementById('gyro_x_value').textContent = gyroX.toFixed(2);
+            document.getElementById('gyro_y_value').textContent = gyroY.toFixed(2);
+            document.getElementById('gyro_z_value').textContent = gyroZ.toFixed(2);
+        }
+
+        function getSensorData() {
+            return {
+                accel_x: parseFloat(document.getElementById('accel_x_value').textContent),
+                accel_y: parseFloat(document.getElementById('accel_y_value').textContent),
+                accel_z: parseFloat(document.getElementById('accel_z_value').textContent),
+                gyro_x: parseFloat(document.getElementById('gyro_x_value').textContent),
+                gyro_y: parseFloat(document.getElementById('gyro_y_value').textContent),
+                gyro_z: parseFloat(document.getElementById('gyro_z_value').textContent)
+            };
+        }
+
+        function sendData() {
+            const data = getSensorData();
+            
+            fetch('/api/send_sensor_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                document.getElementById('status').innerHTML = '状态: 数据已发送，结果已保存';
+                setTimeout(() => {
+                    document.getElementById('status').innerHTML = '状态: 就绪';
+                }, 2000);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('status').innerHTML = '状态: 发送数据时出错 - ' + error.message;
+            });
+        }
+
+        function autoSendToggle() {
+            const button = document.querySelector('button[onclick="autoSendToggle()"]');
+            if (autoSendInterval) {
+                clearInterval(autoSendInterval);
+                autoSendInterval = null;
+                button.textContent = '自动发送: 关闭';
+            } else {
+                autoSendInterval = setInterval(() => {
+                    updateSensorValues();
+                    sendData();
+                }, 200); // Send every 200ms
+                button.textContent = '自动发送: 开启';
+            }
+        }
+
+        // 初始化场景
+        window.onload = function() {
+            init();
+        };
+    </script>
+</body>
+</html>
