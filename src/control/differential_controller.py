@@ -6,7 +6,7 @@ This module implements the control algorithm for the electronic differential
 system based on the rollover risk predictions from the ML model. It adjusts
 wheel speeds to prevent rollover during turns and sudden movements.
 
-Version: 1.0.1
+Version: 1.3.2
 """
 
 import time

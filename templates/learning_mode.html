@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Troll-vs-Troll 学习模式</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -237,9 +235,8 @@
         <!-- 数据收集模式 -->
         <div id="collect-mode" class="mode-content">
             <div class="scene-container">
-                <div id="scene"></div>
                 <div class="data-display">
-                    <h3>实时传感器数据</h3>
+                    <h3>实时传感器数据 (来自主界面)</h3>
                     <div class="sensor-values">
                         <div class="value-item">
                             <span>加速度 X:</span>
@@ -272,6 +269,34 @@
                         <div class="value-item">
                             <span>横滚角:</span>
                             <span id="roll_value">0.00</span> °
+                        </div>
+                    </div>
+                    <div class="status-indicator status-idle" id="connection-status">
+                        连接状态: 等待主界面数据...
+                    </div>
+                </div>
+                <div class="data-display">
+                    <h3>系统状态</h3>
+                    <div class="sensor-values">
+                        <div class="value-item">
+                            <span>风险等级:</span>
+                            <span id="risk_level">-</span>
+                        </div>
+                        <div class="value-item">
+                            <span>风险分数:</span>
+                            <span id="risk_score">-</span>%
+                        </div>
+                        <div class="value-item">
+                            <span>控制激活:</span>
+                            <span id="control_active">-</span>
+                        </div>
+                        <div class="value-item">
+                            <span>左轮速度:</span>
+                            <span id="left_wheel_speed">-</span>
+                        </div>
+                        <div class="value-item">
+                            <span>右轮速度:</span>
+                            <span id="right_wheel_speed">-</span>
                         </div>
                     </div>
                 </div>
@@ -366,117 +391,58 @@
 
     <script>
         // 全局变量
-        let scene, camera, renderer, cube, controls;
         let recording = false;
         let currentSegment = [];
         let recordedSegments = [];
         let segmentStartTime = 0;
         let autoSendInterval = null;
-        let currentRotation = { x: 0, y: 0, z: 0 };
         let dataChart = null;
+        let pollInterval = null;
+        let pollingIntervals = {
+            sensor_data_update: 50,
+            visualization_refresh: 500,
+            learning_mode_polling: 200,
+            performance_report_update: 1000,
+            control_effectiveness_eval: 100
+        };
         
-        // Three.js 初始化
-        function initScene() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xf0f0f0);
-            
-            camera = new THREE.PerspectiveCamera(75, 400 / 400, 0.1, 1000);
-            camera.position.set(0, 0, 5);
-            
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(400, 400);
-            document.getElementById('scene').appendChild(renderer.domElement);
-            
-            const geometry = new THREE.BoxGeometry(2, 1, 1);
-            const materials = [
-                new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-                new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
-                new THREE.MeshBasicMaterial({ color: 0x0000ff }),
-                new THREE.MeshBasicMaterial({ color: 0xffff00 }),
-                new THREE.MeshBasicMaterial({ color: 0xff00ff }),
-                new THREE.MeshBasicMaterial({ color: 0x00ffff })
-            ];
-            
-            cube = new THREE.Mesh(geometry, materials);
-            scene.add(cube);
-            
-            const axesHelper = new THREE.AxesHelper(2);
-            scene.add(axesHelper);
-            
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            
-            controls.addEventListener('start', function() {
-                if (!recording) {
-                    updateCubeRotation();
-                    updateSensorValues();
-                }
-            });
-            
-            controls.addEventListener('end', function() {
-                if (!recording) {
-                    updateCubeRotation();
-                    updateSensorValues();
-                }
-            });
-            
-            animate();
+        // 轮询获取主界面传感器数据
+        function pollSensorData() {
+            fetch('/api/get_realtime_sensor_data')
+                .then(response => response.json())
+                .then(data => {
+                    // 更新传感器数据显示
+                    const sensorData = data.sensor_data;
+                    document.getElementById('accel_x_value').textContent = sensorData.accel_x.toFixed(2);
+                    document.getElementById('accel_y_value').textContent = sensorData.accel_y.toFixed(2);
+                    document.getElementById('accel_z_value').textContent = sensorData.accel_z.toFixed(2);
+                    document.getElementById('gyro_x_value').textContent = sensorData.gyro_x.toFixed(2);
+                    document.getElementById('gyro_y_value').textContent = sensorData.gyro_y.toFixed(2);
+                    document.getElementById('gyro_z_value').textContent = sensorData.gyro_z.toFixed(2);
+                    
+                    // 更新姿态角显示
+                    if (data.processed_features && data.processed_features.orientation) {
+                        document.getElementById('pitch_value').textContent = data.processed_features.orientation.pitch.toFixed(2);
+                        document.getElementById('roll_value').textContent = data.processed_features.orientation.roll.toFixed(2);
+                    }
+                    
+                    // 更新连接状态
+                    document.getElementById('connection-status').className = 'status-indicator status-idle';
+                    document.getElementById('connection-status').textContent = '连接状态: 已连接到主界面';
+                })
+                .catch(error => {
+                    console.error('获取传感器数据失败:', error);
+                    document.getElementById('connection-status').className = 'status-indicator status-recording';
+                    document.getElementById('connection-status').textContent = '连接状态: 连接失败';
+                });
         }
         
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            
-            if (!recording) {
-                updateCubeRotation();
-                updateSensorValues();
-            }
-            
-            renderer.render(scene, camera);
+        // 初始化数据轮询
+        function initDataPolling() {
+            pollInterval = setInterval(pollSensorData, pollingIntervals.learning_mode_polling); // 使用配置的间隔
+            pollSensorData(); // 立即获取一次数据
         }
         
-        function updateCubeRotation() {
-            const targetRotation = new THREE.Euler();
-            targetRotation.setFromRotationMatrix(camera.matrixWorldInverse);
-            
-            cube.rotation.x = -targetRotation.x;
-            cube.rotation.y = -targetRotation.y;
-            cube.rotation.z = -targetRotation.z;
-            
-            currentRotation.copy(cube.rotation);
-        }
-        
-        function updateSensorValues() {
-            const rotX = cube.rotation.x;
-            const rotY = cube.rotation.y;
-            const rotZ = cube.rotation.z;
-            
-            const gravity = 9.8;
-            const accelX = gravity * Math.sin(rotY) * Math.cos(rotX);
-            const accelY = -gravity * Math.sin(rotX);
-            const accelZ = gravity * Math.cos(rotY) * Math.cos(rotX);
-            
-            const gyroX = (rotX - currentRotation.x) * 15;
-            const gyroY = (rotY - currentRotation.y) * 15;
-            const gyroZ = (rotZ - currentRotation.z) * 15;
-            
-            currentRotation = { x: rotX, y: rotY, z: rotZ };
-            
-            const pitch = rotX * 180 / Math.PI;
-            const roll = rotY * 180 / Math.PI;
-            
-            document.getElementById('accel_x_value').textContent = accelX.toFixed(2);
-            document.getElementById('accel_y_value').textContent = accelY.toFixed(2);
-            document.getElementById('accel_z_value').textContent = accelZ.toFixed(2);
-            document.getElementById('gyro_x_value').textContent = gyroX.toFixed(2);
-            document.getElementById('gyro_y_value').textContent = gyroY.toFixed(2);
-            document.getElementById('gyro_z_value').textContent = gyroZ.toFixed(2);
-            document.getElementById('pitch_value').textContent = pitch.toFixed(2);
-            document.getElementById('roll_value').textContent = roll.toFixed(2);
-        }
-        
-        // 模式切换
         function switchMode(mode) {
             document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.mode-content').forEach(content => content.style.display = 'none');
@@ -506,6 +472,7 @@
                 
                 // 开始数据采集
                 autoSendInterval = setInterval(function() {
+                    // 从DOM获取当前传感器数据
                     const dataPoint = {
                         timestamp: Date.now(),
                         accel_x: parseFloat(document.getElementById('accel_x_value').textContent),
@@ -665,7 +632,7 @@
         
         // 初始化
         window.onload = function() {
-            initScene();
+            initDataPolling();
             updateStatistics();
         };
     </script>

@@ -6,7 +6,7 @@ This module implements machine learning algorithms to predict rollover
 risk based on sensor data (accelerometer, gyroscope, etc.). Uses 
 real-time data to determine when differential control is needed.
 
-Version: 1.0.1
+Version: 1.3.2
 """
 
 import time

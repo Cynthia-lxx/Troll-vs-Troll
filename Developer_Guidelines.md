@@ -174,6 +174,7 @@ Troll-vs-Troll/
 - 所有用且必须阅读的参考性内容都会放在 [/ref](file:///E:/Comp/特需/Troll-vs-Troll-main/Troll-vs-Troll-main/ref) 目录下
 - 包括硬件文档、API文档、设计文档等
 - 新的参考资料应及时归档到该目录
+- **特别注意**: `/ref/UNIHIKER-M10-Documentation/` 目录包含了行空板的权威官方文档，是所有M10相关开发的唯一参考标准
 
 ### 10.2 模块兼容性
 - 在引入新模块前检查与UNIHIKER M10的兼容性
@@ -182,6 +183,14 @@ Troll-vs-Troll/
 ### 10.3 硬件接口
 - 严格按照UNIHIKER M10的接口规范连接传感器
 - 注意电压电平匹配和电气安全
+
+### 10.4 行空板官方文档使用规范
+- **必须严格参照/ref目录下的官方文档进行开发**
+- 所有行空板相关的代码实现都必须基于官方文档中的API规范
+- unihiker库使用前必须详细阅读[行空板官方文档-unihiker库](./ref/UNIHIKER-M10-Documentation/行空板官方文档-unihiker库.html)及相关章节
+- pinpong库使用前必须详细阅读[行空板官方文档 - pinpong库](./ref/UNIHIKER-M10-Documentation/行空板官方文档 - pinpong库.html)
+- 严禁在没有查阅官方文档的情况下臆测API用法
+- 遇到问题时优先查阅官方文档的FAQ和常见问题部分
 
 ---
 

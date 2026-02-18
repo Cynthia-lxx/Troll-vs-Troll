@@ -5,8 +5,11 @@
 - v1.0.1 2025-12-18至2026-01: 差速处理内核开发 - 测试未通过（M10 API不熟悉）
 - v1.1.0 2025-12-28: Added UNIHIKER M10 hardware foundation information - Success
 - v1.2.0 2026-02-17: 完成本地开发环境和Web界面 - Success
+- v1.3.0 2026-02-17: 新增机器学习增强功能 - 测试中
+- v1.3.1 2026-02-17: 系统架构重大升级 - 待测试
+- v1.3.2 2026-02-18: **新增智能闭环控制系统和配置驱动的频率管理 - 测试中**
 
-## Project Version: 1.3.1 - 系统架构升级版 (待测试)
+## Project Version: 1.3.2 - 智能闭环控制版 (测试中)
 
 *For SES student project*: Trolley-Anti-Troll is an electronic differential system for pull-handle carriers (e.g., suitcases) to prevent rollover. It replaces mechanical structures with lightweight electronic control, using real-time wheel slip monitoring to enhance stability during turns. Low-cost, energy-efficient, and easy to deploy.
 
@@ -16,7 +19,17 @@ This project will be developed around and based on the UNIHIKER M10 Model flight
 
 **项目时效性提醒**: 如您在README及其他自述性文件中看到此提醒，请注意这些文档可能已过时。项目实际进展情况请参考Update_Log.md文件。
 
-**✨ 最新功能**: 系统架构全面升级
+**🚨 行空板开发重要提示**: 所有涉及UNIHIKER M10行空板的代码开发都**必须严格参照/ref目录下的官方文档**，包括但不限于：
+- [行空板官方文档-unihiker库](./ref/UNIHIKER-M10-Documentation/行空板官方文档-unihiker库.html) - 屏幕显示和GUI控制
+- [行空板官方文档 - pinpong库](./ref/UNIHIKER-M10-Documentation/行空板官方文档 - pinpong库.html) - 硬件接口和传感器控制
+
+严禁在未查阅官方文档的情况下进行行空板相关开发！
+
+**✨ 最新功能**: 智能闭环控制系统
+- 实现完整的反馈控制循环：传感器输入→数据分析→控制执行→效果评估→机器学习优化
+- 集成强化学习代理进行策略优化
+- 所有数据传输频率参数统一配置化管理
+- 新增API端点支持实时性能监控和模型训练
 - 统一配置管理系统，所有参数集中管理
 - API驱动的动态参数加载和更新
 - 一体化用户界面，整合运动控制与传感器输入
@@ -29,7 +42,7 @@ This project will be developed around and based on the UNIHIKER M10 Model flight
 
 详情请查看Update_Log.md中的问题记录。
 
-项目当前状态：系统架构升级完成，正在进行集成测试验证。
+项目当前状态：智能闭环控制系统开发完成，正在进行集成测试验证。
 
 ## Project Features and Usage
 

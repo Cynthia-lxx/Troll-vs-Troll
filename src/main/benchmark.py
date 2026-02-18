@@ -6,7 +6,7 @@ This module serves as a comprehensive benchmark for the UNIHIKER M10 board,
 testing all onboard sensors, display components, and measuring computational performance.
 Features a page-based UI to navigate through different sensor readings and performance metrics.
 
-Version: 1.0.5
+Version: 1.3.2
 """
 
 import time

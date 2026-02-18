@@ -4,6 +4,13 @@ Provides a web interface to simulate sensor inputs for testing the rollover pred
 
 This server allows users to drag a 3D cube to simulate accelerometer and gyroscope data,
 which is then sent to the local control system for processing and display.
+
+## 版本日志
+- v1.0.0 2025-12-28: 初始版本 - 成功
+- v1.1.0 2026-02-17: 添加机器学习训练接口 - 测试中
+- v1.3.2 2026-02-18: 集成反馈控制系统和配置驱动频率管理 - 测试中
+
+Version: 1.3.2
 """
 
 from bottle import Bottle, route, static_file, run, request, response
@@ -14,8 +21,27 @@ from collections import deque
 from src.ml.rollover_prediction import RolloverPredictor
 from src.sensors.data_processor import SensorDataProcessor
 from src.control.differential_controller import DifferentialController
+from src.control.feedback_controller import FeedbackController
+from src.ml.control_rl import ControlRLAgent
 
 app = Bottle()
+
+# Load system configuration
+try:
+    with open('system_config.json', 'r', encoding='utf-8') as f:
+        system_config = json.load(f)
+    ui_settings = system_config.get('ui_settings', {})
+    polling_intervals = ui_settings.get('data_polling_intervals', {})
+except Exception as e:
+    print(f"Warning: Could not load system config: {e}")
+    # Default values
+    polling_intervals = {
+        'sensor_data_update': 50,
+        'visualization_refresh': 500,
+        'learning_mode_polling': 200,
+        'performance_report_update': 1000,
+        'control_effectiveness_eval': 100
+    }
 
 # Global instances of our control systems with default physical parameters
 bag_params = {
@@ -31,6 +57,8 @@ bag_params = {
 rollover_predictor = RolloverPredictor(**bag_params)
 sensor_processor = SensorDataProcessor()
 differential_controller = DifferentialController(**bag_params)
+feedback_controller = FeedbackController(**bag_params)
+rl_agent = ControlRLAgent()
 
 # Current sensor values
 current_sensor_data = {
@@ -67,7 +95,7 @@ def visualization_page():
 
 @app.route('/api/send_sensor_data', method='POST')
 def send_sensor_data():
-    """Receive sensor data from the web interface and process it."""
+    """Receive sensor data from the web interface and process it with feedback control."""
     global current_sensor_data
     
     # Get JSON data from request
@@ -97,8 +125,33 @@ def send_sensor_data():
     # Predict rollover risk
     risk_assessment = rollover_predictor.predict_rollover_risk(accel_data, gyro_data)
     
-    # Update controller
-    control_result = differential_controller.update_control(accel_data, gyro_data)
+    # Execute feedback control
+    control_context = {
+        'accel_data': accel_data,
+        'gyro_data': gyro_data,
+        'risk_score': risk_assessment['risk_score'],
+        'roll_angle': processed_features['orientation']['roll'] if processed_features else 0,
+        'pitch_angle': processed_features['orientation']['pitch'] if processed_features else 0,
+        'accel_magnitude': (accel_data[0]**2 + accel_data[1]**2 + accel_data[2]**2)**0.5
+    }
+    
+    control_result = feedback_controller.execute_control_action(accel_data, gyro_data)
+    
+    # Evaluate control effectiveness
+    post_control_state = {
+        'risk_score': risk_assessment['risk_score'],
+        'roll_angle': processed_features['orientation']['roll'] if processed_features else 0,
+        'pitch_angle': processed_features['orientation']['pitch'] if processed_features else 0,
+        'accel_magnitude': (accel_data[0]**2 + accel_data[1]**2 + accel_data[2]**2)**0.5
+    }
+    
+    effectiveness = feedback_controller.evaluate_control_effectiveness(post_control_state)
+    
+    # Record learning sample
+    feedback_controller.record_learning_sample(control_context, effectiveness)
+    
+    # Get RL recommendation
+    rl_policy = rl_agent.get_policy(control_context)
     
     # Helper function to convert numpy types to native Python types
     def convert_numpy_types(obj):
@@ -124,7 +177,10 @@ def send_sensor_data():
         'left_wheel_speed': control_result['left_wheel_speed'],
         'right_wheel_speed': control_result['right_wheel_speed'],
         'control_active': control_result['control_active'],
-        'processed_features': processed_features
+        'processed_features': processed_features,
+        'control_effectiveness': effectiveness,
+        'rl_recommendation': rl_policy,
+        'performance_report': feedback_controller.get_performance_report()
     }
     
     # Convert numpy types to native Python types for JSON serialization
@@ -160,6 +216,23 @@ def get_current_data():
     """Get current sensor data."""
     response.content_type = 'application/json'
     return json.dumps(current_sensor_data)
+
+@app.route('/api/get_realtime_sensor_data')
+def get_realtime_sensor_data():
+    """Get real-time sensor data for learning mode."""
+    global current_sensor_data
+    
+    # Get processed features for orientation data
+    processed_features = sensor_processor.get_processed_features()
+    
+    response_data = {
+        'sensor_data': current_sensor_data,
+        'processed_features': processed_features,
+        'timestamp': time.time()
+    }
+    
+    response.content_type = 'application/json'
+    return json.dumps(response_data)
 
 @app.route('/api/get_latest_results')
 def get_latest_results():
@@ -212,17 +285,50 @@ def clear_training_data():
         response.content_type = 'application/json'
         return json.dumps({'status': 'error', 'message': str(e)})
 
-@app.route('/api/train_model', method='POST')
-def train_model():
-    """Train the machine learning model with collected data."""
+@app.route('/api/train_rl_model', method='POST')
+def train_rl_model():
+    """Train the reinforcement learning model with collected data."""
     try:
-        # Import and run training
-        from src.ml.offline_trainer import OfflineTrainer
-        trainer = OfflineTrainer()
-        result = trainer.train_from_collected_data()
+        # Export training data from feedback controller
+        sample_count = feedback_controller.export_training_data('rl_training_data.json')
+        
+        # Load and train RL agent
+        # Note: In practice, you'd load the exported data and train the agent
+        # This is a simplified version
         
         response.content_type = 'application/json'
-        return json.dumps({'status': 'success', 'result': result})
+        return json.dumps({
+            'status': 'success', 
+            'message': f'Training data exported ({sample_count} samples)',
+            'training_required': sample_count > 100
+        })
+    except Exception as e:
+        response.status = 500
+        response.content_type = 'application/json'
+        return json.dumps({'status': 'error', 'message': str(e)})
+
+@app.route('/api/get_feedback_report')
+def get_feedback_report():
+    """Get detailed feedback control performance report."""
+    try:
+        report = feedback_controller.get_performance_report()
+        response.content_type = 'application/json'
+        return json.dumps(report, indent=2)
+    except Exception as e:
+        response.status = 500
+        response.content_type = 'application/json'
+        return json.dumps({'error': str(e)})
+
+@app.route('/api/reset_feedback_system', method='POST')
+def reset_feedback_system():
+    """Reset the feedback control system."""
+    try:
+        global feedback_controller, rl_agent
+        feedback_controller = FeedbackController(**bag_params)
+        rl_agent = ControlRLAgent()
+        
+        response.content_type = 'application/json'
+        return json.dumps({'status': 'success', 'message': 'Feedback system reset'})
     except Exception as e:
         response.status = 500
         response.content_type = 'application/json'
@@ -236,6 +342,17 @@ def get_config():
             config = json.load(f)
         response.content_type = 'application/json'
         return json.dumps(config)
+    except Exception as e:
+        response.status = 500
+        response.content_type = 'application/json'
+        return json.dumps({'error': str(e)})
+
+@app.route('/api/get_polling_intervals')
+def get_polling_intervals():
+    """Get polling intervals configuration."""
+    try:
+        response.content_type = 'application/json'
+        return json.dumps(polling_intervals)
     except Exception as e:
         response.status = 500
         response.content_type = 'application/json'

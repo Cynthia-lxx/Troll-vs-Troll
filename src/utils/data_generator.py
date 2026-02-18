@@ -6,7 +6,7 @@ This module generates realistic sensor data for training and testing
 the machine learning models. The data simulates real-world scenarios
 for pull-handle carriers including normal movement, turns, and rollover risks.
 
-Version: 1.0.1
+Version: 1.3.2
 """
 
 import time

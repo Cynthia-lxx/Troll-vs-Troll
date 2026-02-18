@@ -143,6 +143,12 @@
                         <input type="range" id="damping_factor" min="0" max="0.3" step="0.01" value="0.1" oninput="updatePhysics('damping', this.value)">
                         <span id="damping_display">0.10</span>
                     </div>
+                    <div class="setting-row">
+                        <span>自动回正:</span>
+                        <label>
+                            <input type="checkbox" id="auto_reset" checked onchange="toggleAutoReset(this.checked)"> 启用
+                        </label>
+                    </div>
                 </div>
             </div>
         </div>
@@ -194,6 +200,13 @@
     <script>
         // 全局配置
         let systemConfig = null;
+        let pollingIntervals = {
+            sensor_data_update: 50,
+            visualization_refresh: 500,
+            learning_mode_polling: 200,
+            performance_report_update: 1000,
+            control_effectiveness_eval: 100
+        };
         
         // 全局变量
         let scene, camera, renderer, cube, controls;
@@ -212,7 +225,8 @@
         
         let physicsParams = {
             gravityStrength: 0.08,
-            dampingFactor: 0.1
+            dampingFactor: 0.1,
+            autoResetEnabled: true  // 自动回正开关
         };
         
         // 物理状态
@@ -229,6 +243,11 @@
                 physicsParams.gravityStrength = systemConfig.control_parameters.gravity_strength;
                 physicsParams.dampingFactor = systemConfig.control_parameters.damping_factor;
                 
+                // 更新轮询间隔配置
+                if (systemConfig.ui_settings && systemConfig.ui_settings.data_polling_intervals) {
+                    pollingIntervals = systemConfig.ui_settings.data_polling_intervals;
+                }
+                
                 // 更新UI显示
                 document.getElementById('gravity_strength').value = physicsParams.gravityStrength;
                 document.getElementById('gravity_display').textContent = physicsParams.gravityStrength.toFixed(2);
@@ -236,6 +255,7 @@
                 document.getElementById('damping_display').textContent = physicsParams.dampingFactor.toFixed(2);
                 
                 console.log('系统配置加载成功:', systemConfig);
+                console.log('轮询间隔配置:', pollingIntervals);
             } catch (error) {
                 console.error('加载系统配置失败:', error);
             }
@@ -271,6 +291,10 @@
             }
         }
         
+        function toggleAutoReset(enabled) {
+            physicsParams.autoResetEnabled = enabled;
+        }
+        
         async function updateConfigParameter(section, key, value) {
             try {
                 const updateData = {};
@@ -303,11 +327,24 @@
             velocity.y *= (1 - damping * dt);
             velocity.z *= (1 - damping * dt);
             
-            // 应用重力回正到旋转
-            if (Math.abs(cube.rotation.x) > 0.001 || Math.abs(cube.rotation.y) > 0.001) {
-                cube.rotation.x *= (1 - physicsParams.gravityStrength);
-                cube.rotation.y *= (1 - physicsParams.gravityStrength);
-                cube.rotation.z *= (1 - physicsParams.gravityStrength * 0.5);
+            // 直接控制回正 - 更可靠的方法
+            if (physicsParams.autoResetEnabled && !isDragging) {
+                // 设置目标角度为0
+                const targetX = 0;
+                const targetY = 0;
+                const targetZ = 0;
+                
+                // 平滑插值回正
+                const smoothFactor = physicsParams.gravityStrength * 0.1; // 调整回正速度
+                
+                cube.rotation.x = cube.rotation.x * (1 - smoothFactor) + targetX * smoothFactor;
+                cube.rotation.y = cube.rotation.y * (1 - smoothFactor) + targetY * smoothFactor;
+                cube.rotation.z = cube.rotation.z * (1 - smoothFactor * 0.5) + targetZ * smoothFactor * 0.5;
+                
+                // 当接近0时直接设为0避免抖动
+                if (Math.abs(cube.rotation.x) < 0.001) cube.rotation.x = 0;
+                if (Math.abs(cube.rotation.y) < 0.001) cube.rotation.y = 0;
+                if (Math.abs(cube.rotation.z) < 0.001) cube.rotation.z = 0;
             }
             
             // 更新传感器值
@@ -370,7 +407,7 @@
             
             controls.addEventListener('end', function() {
                 isDragging = false;
-                // 将当前相机的旋转状态转换为立方体的旋转
+                // 用户停止拖动后立即更新
                 updateCubeRotation();
                 updateSensorValues();
             });
@@ -508,8 +545,8 @@
                 autoSendInterval = setInterval(() => {
                     updateSensorValues();
                     sendData();
-                }, 200); // Send every 200ms
-                button.textContent = '自动发送: 开启';
+                }, pollingIntervals.sensor_data_update); // 使用配置的间隔
+                button.textContent = `自动发送: 开启 (${pollingIntervals.sensor_data_update}ms)`;
             }
         }
 

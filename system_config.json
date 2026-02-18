@@ -1,7 +1,7 @@
 {
   "system": {
     "name": "Troll-vs-Troll Anti-Rollover System",
-    "version": "1.3.1",
+    "version": "1.3.2",
     "description": "Electronic differential anti-rollover system for pull-handle carriers"
   },
   "physical_parameters": {
@@ -50,6 +50,18 @@
   "ui_settings": {
     "scene_width": 400,
     "scene_height": 400,
-    "auto_send_interval": 200
+    "auto_send_interval": 200,
+    "data_polling_intervals": {
+      "sensor_data_update": 50,
+      "visualization_refresh": 500,
+      "learning_mode_polling": 200,
+      "performance_report_update": 1000,
+      "control_effectiveness_eval": 100
+    },
+    "api_timeouts": {
+      "sensor_data_request": 5000,
+      "training_request": 30000,
+      "model_update": 10000
+    }
   }
 }
