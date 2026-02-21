@@ -7,9 +7,9 @@
 - v1.2.0 2026-02-17: 完成本地开发环境和Web界面 - Success
 - v1.3.0 2026-02-17: 新增机器学习增强功能 - 测试中
 - v1.3.1 2026-02-17: 系统架构重大升级 - 待测试
-- v1.3.2 2026-02-18: **新增智能闭环控制系统和配置驱动的频率管理 - 测试中**
+- v1.4.0 2026-02-21: **全新架构设计 - M10单文件限制优化，本地承担全部处理功能** - 开发中
 
-## Project Version: 1.3.2 - 智能闭环控制版 (测试中)
+## Project Version: 1.4.0 - 单文件架构优化版 (开发中)
 
 *For SES student project*: Trolley-Anti-Troll is an electronic differential system for pull-handle carriers (e.g., suitcases) to prevent rollover. It replaces mechanical structures with lightweight electronic control, using real-time wheel slip monitoring to enhance stability during turns. Low-cost, energy-efficient, and easy to deploy.
 
@@ -50,6 +50,51 @@ Trolley-Anti-Troll is designed to prevent rollover in pull-handle carriers (e.g.
 
 For detailed version history and updates, please see [Update_Log.md](file:///E:/Comp/特需/Troll-vs-Troll-main/Troll-vs-Troll-main/Update_Log.md).
 
+## 🚀 全新单文件架构设计 (版本 1.4.0)
+
+基于UNIHIKER M10只能上传一个文件的重要限制，我们重新设计了系统架构：
+
+### 核心理念
+**M10只负责一件事：传感器数据采集和传输**
+**本地计算机承担所有复杂处理任务**
+
+### 新架构优势
+- ✅ **符合硬件限制**：严格遵守UNIHIKER单文件上传约束
+- ✅ **资源优化**：M10专注轻量级数据采集，本地计算机处理复杂算法
+- ✅ **功能完整**：所有原有功能在本地得到完整保留和增强
+- ✅ **易于维护**：清晰的职责分离，便于调试和升级
+
+### 部署文件
+- [`unihiker_sensor_collector.py`](file:///E:/Comp/特需/Troll-vs-Troll-main/Troll-vs-Troll-main/unihiker_sensor_collector.py) - UNIHIKER端单一文件（纯数据采集）
+- [`local_complete_system.py`](file:///E:/Comp/特需/Troll-vs-Troll-main/Troll-vs-Troll-main/local_complete_system.py) - 本地完整控制系统
+- [`UNIHIKER_New_Architecture_Guide.md`](file:///E:/Comp/特需/Troll-vs-Troll-main/Troll-vs-Troll-main/UNIHIKER_New_Architecture_Guide.md) - 新架构部署指南
+
+### 系统架构
+```mermaid
+graph LR
+    A[UNIHIKER传感器采集器] --串口传输--> B[本地完整控制系统]
+    B --处理分析--> C[风险预测]
+    B --控制算法--> D[差速控制]
+    B --机器学习--> E[模型优化]
+    B --实时显示--> F[用户界面]
+```
+
+### 功能分布
+
+**UNIHIKER端（极简设计）：**
+- 实时传感器数据读取（加速度、陀螺仪、光线等）
+- 简单的状态显示
+- 高效的数据打包和串口传输
+- 最小化的资源占用和功耗
+
+**本地端（完整功能）：**
+- 复杂的数据处理和特征提取
+- 机器学习模型训练和预测
+- 差速控制算法计算
+- 实时可视化界面
+- 数据存储和分析
+- 系统配置和调优
+
 ## New Feature: UNIHIKER M10 Benchmark Demo
 
 The project now includes a comprehensive benchmark demo ([benchmark.py](file:///E:/Comp/特需/Troll-vs-Troll-main/Troll-vs-Troll-main/src/main/benchmark.py)) that tests all onboard sensors, display components, and computational performance of the UNIHIKER M10 board. The demo features a page-based UI to navigate through different sensor readings and performance metrics.
@@ -69,6 +114,79 @@ The [differential_controller.py](file:///E:/Comp/特需/Troll-vs-Troll-main/Trol
 ## Sensor Data Generation
 
 The [data_generator.py](file:///E:/Comp/特需/Troll-vs-Troll-main/Troll-vs-Troll-main/src/utils/data_generator.py) module generates realistic sensor data for training and testing the machine learning models. The data simulates real-world scenarios for pull-handle carriers including normal movement, turns, and rollover risks.
+
+## 系统架构与数据流
+
+```mermaid
+graph TD
+    A[用户交互层] --> B[Web API接口层]
+    B --> C[核心处理层]
+    C --> D[数据存储层]
+    D --> E[机器学习层]
+    
+    subgraph "用户交互层"
+        A1[3D立方体界面] --> A
+        A2[滑块控制面板] --> A
+        A3[物理参数设置] --> A
+        A4[学习模式界面] --> A
+    end
+    
+    subgraph "Web API接口层"
+        B1[/api/send_sensor_data] --> B
+        B2[/api/get_config] --> B
+        B3[/api/update_config] --> B
+        B4[/api/save_training_data] --> B
+        B5[/api/get_latest_results] --> B
+    end
+    
+    subgraph "核心处理层"
+        C1[传感器数据处理器] --> C
+        C2[侧翻风险预测器] --> C
+        C3[差速控制器] --> C
+        C4[反馈控制器] --> C
+        C5[强化学习代理] --> C
+    end
+    
+    subgraph "数据存储层"
+        D1[system_config.json] --> D
+        D2[current_sensor_data] --> D
+        D3[training_data.json] --> D
+        D4[recent_results缓存] --> D
+    end
+    
+    subgraph "机器学习层"
+        E1[离线训练器] --> E
+        E2[特征工程模块] --> E
+        E3[模型持久化] --> E
+    end
+    
+    %% 数据流向
+    A -->|用户操作数据| B1
+    B1 -->|传感器数据| C1
+    C1 -->|处理后特征| C2
+    C2 -->|风险评估| C3
+    C3 -->|控制指令| C4
+    C4 -->|学习样本| E1
+    C4 -->|性能报告| D4
+    B3 -->|配置更新| D1
+    B4 -->|训练数据| D3
+    E1 -->|训练模型| D3
+```
+
+## 详细数据流说明
+
+### 主要数据处理流程：
+1. **用户输入** → 3D界面交互产生传感器模拟数据
+2. **API传输** → 通过`/api/send_sensor_data`发送到后端
+3. **核心处理** → 传感器处理器→风险预测→差速控制→反馈优化
+4. **结果输出** → 实时显示处理结果和控制状态
+5. **学习循环** → 记录控制效果用于模型优化
+
+### 数据共享机制：
+- **统一配置**：所有组件共享`system_config.json`
+- **实时数据**：全局`current_sensor_data`变量
+- **结果缓存**：`recent_results`存储最近50次处理结果
+- **训练数据**：学习模式收集的数据供离线训练使用
 
 ## 项目进展历史
 

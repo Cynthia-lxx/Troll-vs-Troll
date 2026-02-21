@@ -21,7 +21,8 @@ Troll-vs-Troll（拉杆载具防侧翻系统）是一个基于UNIHIKER M10行空
 
 ### 2.2 软件要求
 - Python 3.7 或更高版本（推荐升级至 Python 3.12）
-- unihiker 库：`pip install unihiker`
+- unihiker 库：`pip install unihiker`（行空板出厂已预装）
+- pinpong 库：`pip install pinpong`（行空板出厂已预装）
 - 其他依赖库根据具体功能需求安装
 
 ## 3. 开发规范
@@ -47,9 +48,175 @@ Troll-vs-Troll（拉杆载具防侧翻系统）是一个基于UNIHIKER M10行空
   - 需要经过代码审查（Code Review）
   - 确认功能按预期工作且无副作用
 
-## 4. 代码结构
+### 3.4 UNIHIKER M10核心技术规范
 
-### 4.1 项目目录结构
+#### 3.4.1 屏幕和坐标系规范
+- **分辨率**: 严格使用240×320像素
+- **坐标系**: 左上角为原点(0,0)，右为x正方向，下为y正方向
+- **对齐位置**: 支持9种对齐方式(north/south/east/west/top/bottom/left/right/center)
+- **颜色表示**: 支持RGB值(color=(255,0,0))、16进制值(color="#ff00ff")、固定颜色(color="red")
+
+#### 3.4.2 unihiker库使用规范
+- **导入方式**: `from unihiker import GUI`
+- **初始化**: `gui = GUI()`
+- **参数调用**: **必须使用命名参数**，禁止使用位置参数
+  - ✅ 正确: `gui.add_button(x=0, y=10, w=20, h=20, text="按钮")`
+  - ❌ 错误: `gui.add_button(0, 10, 20, 20, "按钮")`
+- **控件管理**: 
+  - 更新控件: `控件对象名.config(参数名=值)`
+  - 删除控件: `GUI对象.remove(控件对象名)` (推荐) 或 `控件对象名.remove()`
+  - 清空所有控件: `GUI对象.clear()`
+
+#### 3.4.3 pinpong库使用规范
+- **导入方式**: `from pinpong.board import Board, Pin`
+- **初始化**: `Board().begin()` (必须在使用前调用)
+- **架构特点**: 通过协处理器控制板载元件和GPIO
+- **包结构**: 支持board、extension、libs三个包分类
+
+#### 3.4.4 板载资源使用规范
+1. **L灯控制** (P25引脚)
+   - 控制方式: `Pin(Pin.P25, Pin.OUT).write_digital(1/0)`
+   - 高电平(1)点亮，低电平(0)熄灭
+
+2. **按钮A/B使用**
+   - 查询式: `button_a.is_pressed()` 返回True/False
+   - 回调式: `button_a.irq(trigger=Pin.IRQ_RISING, handler=回调函数)`
+   - **注意**: A/B按钮也可直接用键盘事件调用
+
+3. **传感器使用**
+   - 光线传感器: `light.read()` 返回0-4095值
+   - 加速度传感器: `accelerometer.get_x()`, `get_y()`, `get_z()`, `get_strength()`
+   - 陀螺仪: `gyroscope.get_x()`, `get_y()`, `get_z()`
+   - 环境声音: 使用unihiker库 `Audio().sound_level()`
+
+4. **蜂鸣器控制**
+   - 播放音乐: `buzzer.play(buzzer.DADADADUM, buzzer.Once)`
+   - 播放音符: `buzzer.pitch(494, 4)`
+
+#### 3.4.5 GPIO引脚规范
+- **数字IO**: 所有引脚支持3.3V数字输入输出
+- **模拟输入(ADC)**: P0, P1, P2, P3, P4, P10, P21, P22 (12位精度)
+- **PWM输出**: P0, P2, P3, P10, P16, P21, P22, P23 (10位精度)
+  - **重要**: P8/P2共用一路PWM，P9/P10共用一路PWM
+  - 使用时注意引脚冲突，同一组只能使用其中一个
+
+#### 3.4.6 高级功能接口
+1. **UART串口**: 1路硬件串口 (P0-RX, P3-TX)
+2. **SPI接口**: 2路 (SPI0: P1,P10,P2; SPI1: P13,P14,P15)
+3. **I2C接口**: 2个PH2.0接口 + 金手指P19/P20
+   - 地址扫描命令: `i2cdetect -y 4`
+
+#### 3.4.7 开发禁令
+⚠️ **严格禁止的行为**:
+1. 不查阅官方文档就臆测API用法
+2. 使用位置参数调用unihiker库函数
+3. 忽略pinpong库的初始化要求
+4. 同时使用PWM共用引脚组中的多个引脚
+5. 将大电流设备直接连接到板载接口
+6. 在I2C总线上使用相同地址的多个设备
+7. 不经过测试就认为功能已完成
+
+#### 3.4.8 调试和故障排除
+1. **优先查阅官方文档**的FAQ和示例代码
+2. **使用官方示例**作为开发起点
+3. **逐步验证**每个功能模块
+4. **注意版本兼容性**问题
+5. **善用文档中的图形化示例**进行对比
+
+## 4. 系统架构
+
+### 4.1 整体架构图
+
+```mermaid
+graph LR
+    A[前端界面层] --> B[Web服务层]
+    B --> C[业务逻辑层]
+    C --> D[数据处理层]
+    D --> E[硬件抽象层]
+    
+    subgraph "前端界面层"
+        A1[传感器输入界面] --> A
+        A2[参数配置界面] --> A
+        A3[学习模式界面] --> A
+        A4[可视化界面] --> A
+    end
+    
+    subgraph "Web服务层"
+        B1[Bottle Web框架] --> B
+        B2[RESTful API] --> B
+        B3[静态文件服务] --> B
+    end
+    
+    subgraph "业务逻辑层"
+        C1[反馈控制系统] --> C
+        C2[差速控制算法] --> C
+        C3[风险评估引擎] --> C
+        C4[强化学习代理] --> C
+    end
+    
+    subgraph "数据处理层"
+        D1[传感器数据处理器] --> D
+        D2[特征提取模块] --> D
+        D3[数据缓存管理] --> D
+        D4[异常检测模块] --> D
+    end
+    
+    subgraph "硬件抽象层"
+        E1[UNIHIKER M10接口] --> E
+        E2[传感器驱动] --> E
+        E3[执行器控制] --> E
+    end
+```
+
+### 4.2 核心数据流
+
+```mermaid
+sequenceDiagram
+    participant User as 用户
+    participant UI as Web界面
+    participant API as Web API
+    participant Core as 核心处理
+    participant Storage as 数据存储
+    participant ML as 机器学习
+    
+    User->>UI: 3D交互操作
+    UI->>API: POST /api/send_sensor_data
+    API->>Core: 传感器数据处理
+    Core->>Storage: 更新current_sensor_data
+    Core->>Core: 风险评估计算
+    Core->>Core: 差速控制决策
+    Core->>Core: 反馈效果评估
+    Core->>Storage: 记录学习样本
+    Core->>ML: 导出训练数据
+    Core->>UI: 返回处理结果
+    UI->>User: 实时显示结果
+```
+
+### 4.3 配置管理体系
+
+```mermaid
+graph TD
+    Config[system_config.json] --> A[Web服务器配置]
+    Config --> B[UI界面配置]
+    Config --> C[控制参数配置]
+    Config --> D[传感器参数配置]
+    Config --> E[机器学习配置]
+    
+    A --> A1[API端点设置]
+    A --> A2[轮询间隔配置]
+    B --> B1[界面尺寸设置]
+    B --> B2[自动发送间隔]
+    C --> C1[重力强度参数]
+    C --> C2[阻尼系数设置]
+    D --> D1[采样率配置]
+    D --> D2[传感器量程]
+    E --> E1[特征名称定义]
+    E --> E2[训练参数设置]
+```
+
+## 5. 代码结构
+
+### 5.1 项目目录结构
 ```
 Troll-vs-Troll/
 ├── README.md

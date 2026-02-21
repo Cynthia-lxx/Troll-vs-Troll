@@ -2,7 +2,7 @@
 Offline Machine Learning Trainer for Troll-vs-Troll System
 离线机器学习训练器
 
-Version: 1.3.2
+Version: 1.4.0
 """
 
 import numpy as np

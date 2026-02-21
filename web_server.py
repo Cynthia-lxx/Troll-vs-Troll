@@ -8,9 +8,9 @@ which is then sent to the local control system for processing and display.
 ## 版本日志
 - v1.0.0 2025-12-28: 初始版本 - 成功
 - v1.1.0 2026-02-17: 添加机器学习训练接口 - 测试中
-- v1.3.2 2026-02-18: 集成反馈控制系统和配置驱动频率管理 - 测试中
+- v1.4.0 2026-02-21: 全新架构设计 - M10单文件限制优化，本地承担全部处理功能 - 开发中
 
-Version: 1.3.2
+Version: 1.4.0
 """
 
 from bottle import Bottle, route, static_file, run, request, response

@@ -6,7 +6,7 @@ This module processes raw sensor data from accelerometers, gyroscopes,
 and other sensors to extract meaningful features for the machine learning
 model to predict rollover risk.
 
-Version: 1.3.2
+Version: 1.4.0
 """
 
 import time
