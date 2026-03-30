@@ -245,6 +245,11 @@ def learning_mode():
     """Serve the learning mode page."""
     return load_template('learning_mode.html')
 
+@app.route('/import')
+def import_data_page():
+    """Serve the M10 data import page."""
+    return load_template('import_data.html')
+
 @app.route('/api/save_training_data', method='POST')
 def save_training_data():
     """Save training data from learning mode."""
@@ -385,6 +390,68 @@ def update_config():
         
         response.content_type = 'application/json'
         return json.dumps({'status': 'success', 'message': '配置已更新'})
+    except Exception as e:
+        response.status = 500
+        response.content_type = 'application/json'
+        return json.dumps({'status': 'error', 'message': str(e)})
+
+@app.route('/api/import_m10_data', method='POST')
+def import_m10_data():
+    """接收手动粘贴的 M10 导出数据"""
+    try:
+        data = request.json
+        raw_text = data.get('raw_export', '')
+        
+        if not raw_text.strip():
+            return json.dumps({'status': 'error', 'message': '未提供数据'})
+        
+        # 提取 DATA_EXPORT_START 和 DATA_EXPORT_END 之间的内容
+        start_idx = raw_text.find("DATA_EXPORT_START")
+        end_idx = raw_text.find("DATA_EXPORT_END")
+        
+        if start_idx == -1 or end_idx == -1:
+            return json.dumps({'status': 'error', 'message': '格式不正确：未找到数据标记'})
+        
+        # 解析 JSON 数据
+        json_str = raw_text[start_idx+19:end_idx].strip()
+        imported_data = json.loads(json_str)
+        
+        # 验证数据格式
+        if 'sensor_readings' not in imported_data:
+            return json.dumps({'status': 'error', 'message': '数据格式错误：缺少 sensor_readings 字段'})
+        
+        # 保存到训练数据文件
+        training_data_file = 'training_data.json'
+        try:
+            if os.path.exists(training_data_file):
+                with open(training_data_file, 'r', encoding='utf-8') as f:
+                    existing_data = json.load(f)
+            else:
+                existing_data = []
+            
+            # 添加新数据
+            readings = imported_data['sensor_readings']
+            existing_data.extend(readings)
+            
+            with open(training_data_file, 'w', encoding='utf-8') as f:
+                json.dump(existing_data, f, indent=2, ensure_ascii=False)
+            
+            response.content_type = 'application/json'
+            return json.dumps({
+                'status': 'success', 
+                'message': f'成功导入 {len(readings)} 条传感器数据',
+                'count': len(readings),
+                'total': len(existing_data)
+            })
+        except Exception as e:
+            response.status = 500
+            response.content_type = 'application/json'
+            return json.dumps({'status': 'error', 'message': f'保存失败：{str(e)}'})
+            
+    except json.JSONDecodeError as e:
+        response.status = 400
+        response.content_type = 'application/json'
+        return json.dumps({'status': 'error', 'message': f'JSON 解析失败：{str(e)}'})
     except Exception as e:
         response.status = 500
         response.content_type = 'application/json'

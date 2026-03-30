@@ -2,28 +2,37 @@
 
 ## Version Log
 - v1.0.0 2025-12-28: Initial version - Success
-- v1.0.1 2025-12-18至2026-01: 差速处理内核开发 - 测试未通过（M10 API不熟悉）
+- v1.0.1 2025-12-18 至 2026-01: 差速处理内核开发 - 测试未通过（M10 API 不熟悉）
 - v1.1.0 2025-12-28: Added UNIHIKER M10 hardware foundation information - Success
-- v1.2.0 2026-02-17: 完成本地开发环境和Web界面 - Success
+- v1.2.0 2026-02-17: 完成本地开发环境和 Web 界面 - Success
 - v1.3.0 2026-02-17: 新增机器学习增强功能 - 测试中
 - v1.3.1 2026-02-17: 系统架构重大升级 - 待测试
-- v1.4.0 2026-02-21: **全新架构设计 - M10单文件限制优化，本地承担全部处理功能** - 开发中
+- v1.4.0 2026-02-21: **全新架构设计 - M10 单文件限制优化，本地承担全部处理功能** - 开发中
+- v1.5.0 2026-03-30: **离线数据采集模式 - 解决串口连接问题，手动导出导入数据** - 测试中
 
-## Project Version: 1.4.0 - 单文件架构优化版 (开发中)
+## Project Version: 1.5.0 - 离线数据采集模式 (测试中)
 
 *For SES student project*: Trolley-Anti-Troll is an electronic differential system for pull-handle carriers (e.g., suitcases) to prevent rollover. It replaces mechanical structures with lightweight electronic control, using real-time wheel slip monitoring to enhance stability during turns. Low-cost, energy-efficient, and easy to deploy.
 
 This project will be developed around and based on the UNIHIKER M10 Model flight control board as the hardware foundation.
 
-**重要说明**: 本项目自2025年12月28日起文档未更新，请注意时效性。
+**重要说明**: 本项目自 2026 年 3 月 30 日起文档已更新，当前最新版本为 v1.5.0。
 
 **项目时效性提醒**: 如您在README及其他自述性文件中看到此提醒，请注意这些文档可能已过时。项目实际进展情况请参考Update_Log.md文件。
 
-**🚨 行空板开发重要提示**: 所有涉及UNIHIKER M10行空板的代码开发都**必须严格参照/ref目录下的官方文档**，包括但不限于：
-- [行空板官方文档-unihiker库](./ref/UNIHIKER-M10-Documentation/行空板官方文档-unihiker库.html) - 屏幕显示和GUI控制
+**🚨 行空板开发重要提示**: 所有涉及 UNIHIKER M10 行空板的代码开发都**必须严格参照/ref 目录下的官方文档**，包括但不限于：
+- [行空板官方文档-unihiker 库](./ref/UNIHIKER-M10-Documentation/行空板官方文档-unihiker库.html) - 屏幕显示和GUI控制
 - [行空板官方文档 - pinpong库](./ref/UNIHIKER-M10-Documentation/行空板官方文档 - pinpong库.html) - 硬件接口和传感器控制
 
 严禁在未查阅官方文档的情况下进行行空板相关开发！
+
+**✨ 最新功能 (v1.5.0)**: 离线数据采集模式
+- ✅ **彻底解决串口连接问题**：不再依赖实时串口监听
+- ✅ **手动导出导入机制**：M10 按 A 键导出数据到控制台，复制粘贴到网页导入
+- ✅ **心跳日志保活**：每 5 秒打印一次状态，确认设备运行正常
+- ✅ **配置导出工具**：可将训练好的模型参数导出为轻量配置文件
+- ✅ **统一数据格式**：M10 导出数据与计算机端使用相同 JSON 格式
+- ✅ **屏幕显示优化**：实时显示缓存数据量、操作提示等信息
 
 **✨ 最新功能**: 智能闭环控制系统
 - 实现完整的反馈控制循环：传感器输入→数据分析→控制执行→效果评估→机器学习优化

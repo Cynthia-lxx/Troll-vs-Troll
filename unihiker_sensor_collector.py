@@ -27,20 +27,28 @@ except ImportError:
     UNIHIKER_AVAILABLE = False
 
 class UNIHikerSensorCollector:
-    """UNIHIKER传感器数据采集器"""
+    """UNIHIKER 传感器数据采集器（离线批处理模式）"""
     
-    def __init__(self):
+    def __init__(self, config_file='m10_config.json'):
         self.uart = None
         self.gui = None
         self.connected = False
         self.running = False
         self.sensor_data = {}
         self.display_data = {}
+        self.config_file = config_file
+        self.config = None
+        self.data_buffer = deque(maxlen=1000)  # 数据缓存
+        self.last_heartbeat = 0
+        self.export_triggered = False
         
     def initialize_hardware(self):
-        """初始化硬件组件"""
-        print("正在初始化UNIHIKER硬件...")
-        
+        """初始化硬件组件并加载配置"""
+        print("正在初始化 UNIHIKER 硬件...")
+            
+        # 加载配置文件
+        self.load_config()
+            
         # 初始化串口通信
         if UNIHIKER_AVAILABLE:
             try:
@@ -65,6 +73,29 @@ class UNIHikerSensorCollector:
                 print(f"GUI初始化失败: {e}")
         
         return True
+    
+    def load_config(self):
+        """从外部文件加载配置"""
+        try:
+            import os
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    self.config = json.load(f)
+                print(f"配置加载成功：{self.config_file}")
+                print(f"  采样率：{self.config.get('sampling_rate', 100)} Hz")
+                print(f"  风险阈值：{self.config.get('risk_thresholds', {})}")
+            else:
+                print("未找到配置文件，使用默认参数")
+                self.config = {
+                    'sampling_rate': 100,
+                    'risk_thresholds': {'low': 0.3, 'medium': 0.6, 'high': 0.8}
+                }
+        except Exception as e:
+            print(f"配置加载失败：{e}，使用默认参数")
+            self.config = {
+                'sampling_rate': 100,
+                'risk_thresholds': {'low': 0.3, 'medium': 0.6, 'high': 0.8}
+            }
     
     def read_sensors(self):
         """读取所有传感器数据"""
@@ -123,33 +154,47 @@ class UNIHikerSensorCollector:
             return {'timestamp': time.time(), 'error': str(e)}
     
     def send_data(self, data):
-        """通过串口发送数据"""
-        if not self.connected:
-            return False
-            
+        """将数据添加到缓存（不再实时发送）"""
         try:
-            # 构造传输数据包
-            packet = {
-                'type': 'sensor_data',
+            # 将数据添加到缓存
+            self.data_buffer.append({
+                'timestamp': time.time(),
                 'data': data,
-                'device_id': 'UNIHIKER_M10_001'
-            }
-            
-            # JSON序列化
-            json_data = json.dumps(packet, ensure_ascii=False)
-            message = f"DATA_START{json_data}DATA_END"
-            
-            if UNIHIKER_AVAILABLE and self.uart:
-                # 实际串口发送
-                self.uart.write([ord(c) for c in message])
-            else:
-                # 模拟发送（调试用）
-                print(f"[发送] {message[:50]}...")
-                
+                'config_version': self.config.get('version', 'unknown') if self.config else 'none'
+            })
             return True
         except Exception as e:
-            print(f"数据发送失败: {e}")
+            print(f"数据缓存失败：{e}")
             return False
+        
+    def export_buffer_to_console(self):
+        """导出缓存数据到控制台"""
+        if not self.data_buffer:
+            print("[EXPORT] 无数据可导出")
+            return
+            
+        print("\n" + "="*50)
+        print("DATA_EXPORT_START")
+        print("="*50)
+            
+        export_data = {
+            'device_id': 'UNIHIKER_M10_001',
+            'export_timestamp': time.time(),
+            'config_used': self.config,
+            'total_readings': len(self.data_buffer),
+            'sensor_readings': list(self.data_buffer)
+        }
+            
+        print(json.dumps(export_data, ensure_ascii=False, indent=2))
+            
+        print("="*50)
+        print("DATA_EXPORT_END")
+        print("="*50)
+        print("\n提示：请复制以上全部内容，粘贴到计算机端导入界面")
+            
+        # 导出后清空缓存
+        self.data_buffer.clear()
+        print(f"已清空缓存 ({len(self.data_buffer)} 条记录)")
     
     def update_display(self):
         """更新显示屏内容"""
@@ -162,55 +207,85 @@ class UNIHikerSensorCollector:
             
             # 显示基本信息
             y_pos = 10
-            self.gui.draw_text(x=10, y=y_pos, text="UNIHIKER数据采集器", font_size=16)
+            self.gui.draw_text(x=10, y=y_pos, text="M10 数据采集器 (离线模式)", font_size=16)
             y_pos += 25
             
             # 显示连接状态
-            status = "已连接" if self.connected else "未连接"
-            self.gui.draw_text(x=10, y=y_pos, text=f"状态: {status}", font_size=12)
+            status = "运行中" if self.running else "已停止"
+            self.gui.draw_text(x=10, y=y_pos, text=f"状态：{status}", font_size=12)
+            y_pos += 20
+            
+            # 显示缓存数据量
+            buffer_size = len(self.data_buffer)
+            max_size = self.data_buffer.maxlen
+            self.gui.draw_text(x=10, y=y_pos, text=f"缓存：{buffer_size}/{max_size}", font_size=12)
             y_pos += 20
             
             # 显示传感器数据摘要
             if 'light' in self.display_data:
-                self.gui.draw_text(x=10, y=y_pos, text=f"光线: {self.display_data['light']}", font_size=12)
+                self.gui.draw_text(x=10, y=y_pos, text=f"光线：{self.display_data['light']}", font_size=12)
                 y_pos += 15
             
             if 'acceleration' in self.display_data:
                 acc = self.display_data['acceleration']
-                self.gui.draw_text(x=10, y=y_pos, text=f"加速度: ({acc['x']:.1f}, {acc['y']:.1f}, {acc['z']:.1f})", font_size=10)
+                self.gui.draw_text(x=10, y=y_pos, text=f"加速度：({acc['x']:.1f}, {acc['y']:.1f}, {acc['z']:.1f})", font_size=10)
                 y_pos += 15
+            
+            # 显示操作提示
+            self.gui.draw_text(x=10, y=200, text="按 A 键导出数据", font_size=10, color="blue")
             
             # 显示时间
             current_time = time.strftime("%H:%M:%S")
-            self.gui.draw_text(x=10, y=220, text=f"时间: {current_time}", font_size=10)
+            self.gui.draw_text(x=10, y=220, text=f"时间：{current_time}", font_size=10)
             
         except Exception as e:
-            print(f"显示更新错误: {e}")
+            print(f"显示更新错误：{e}")
     
     def data_collection_loop(self):
-        """数据采集主循环"""
-        print("数据采集循环启动")
+        """数据采集主循环（离线批处理模式）"""
+        print("数据采集循环启动（离线模式）")
         last_send_time = 0
-        send_interval = 0.1  # 100ms发送间隔
-        
+        send_interval = 0.1  # 100ms 采样间隔
+        heartbeat_interval = 5.0  # 5 秒心跳间隔
+            
         while self.running:
             try:
                 current_time = time.time()
-                
+                    
                 # 读取传感器数据
                 sensor_data = self.read_sensors()
                 self.display_data = sensor_data
-                
-                # 定期发送数据
+                    
+                # 将数据添加到缓存（不再实时发送）
                 if current_time - last_send_time >= send_interval:
                     self.send_data(sensor_data)
                     last_send_time = current_time
-                
+                    
+                # 定期打印心跳日志
+                if current_time - self.last_heartbeat >= heartbeat_interval:
+                    buffer_size = len(self.data_buffer)
+                    max_size = self.data_buffer.maxlen
+                    print(f"[LIVE] Heartbeat: OK | 缓存：{buffer_size}/{max_size} | 运行正常")
+                    self.last_heartbeat = current_time
+                    
+                # 检查导出触发（A 按钮）
+                if UNIHIKER_AVAILABLE:
+                    try:
+                        from pinpong.extension.unihiker import button_a
+                        if button_a.is_pressed():
+                            print("\n检测到 A 按钮按下，准备导出数据...")
+                            time.sleep(0.5)  # 消抖
+                            if button_a.is_pressed():  # 确认按下
+                                self.export_buffer_to_console()
+                                time.sleep(1)  # 防止重复触发
+                    except:
+                        pass
+                    
                 # 短暂休眠
                 time.sleep(0.05)
-                
+                    
             except Exception as e:
-                print(f"数据采集循环错误: {e}")
+                print(f"数据采集循环错误：{e}")
                 time.sleep(0.1)
     
     def start(self):
